@@ -96,6 +96,8 @@ class BaseDatabaseFeatures(object):
     # integer primary keys.
     related_fields_match_type = False
     allow_sliced_subqueries = True
+    has_select_for_update = False
+    has_select_for_update_nowait = False
 
 class BaseDatabaseOperations(object):
     """
@@ -185,6 +187,15 @@ class BaseDatabaseOperations(object):
         ordering.
         """
         return []
+    def for_update_sql(self, nowait=False): 
+        """ 
+        Return FOR UPDATE SQL clause to lock row for update 
+        """ 
+        if nowait: 
+            nowaitstr = ' NOWAIT' 
+        else: 
+            nowaitstr = '' 
+        return 'FOR UPDATE' + nowaitstr 
 
     def fulltext_search_sql(self, field_name):
         """

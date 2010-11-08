@@ -50,6 +50,8 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     uses_savepoints = True
     can_return_id_from_insert = True
     allow_sliced_subqueries = False
+    has_select_for_update = True 
+    has_select_for_update_nowait = True
 
 
 class DatabaseOperations(BaseDatabaseOperations):
@@ -278,6 +280,12 @@ WHEN (new.%(col_name)s IS NULL)
                                            'table': table_name,
                                            'column': column_name})
         return output
+
+    def signals_deadlock(self, exception): 
+        return exception.args[0].code == 60 
+
+    def signals_lock_not_available(self, exception): 
+        return exception.args[0].code == 54 
 
     def start_transaction_sql(self):
         return ''

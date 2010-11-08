@@ -114,6 +114,10 @@ class SQLCompiler(object):
                         result.append('LIMIT %d' % val)
                 result.append('OFFSET %d' % self.query.low_mark)
 
+        if self.query.select_for_update and self.connection.features.has_select_for_update:
+            nowait = self.query.select_for_update_nowait and self.connection.features.has_select_for_update
+            result.append("%s" % self.connection.ops.for_update_sql(nowait=nowait))
+
         return ' '.join(result), tuple(params)
 
     def as_nested_sql(self):

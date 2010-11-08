@@ -11,7 +11,7 @@ from django.utils.copycompat import deepcopy
 from django.utils.tree import Node
 from django.utils.datastructures import SortedDict
 from django.utils.encoding import force_unicode
-from django.db import connections, DEFAULT_DB_ALIAS
+from django.db import connections, DEFAULT_DB_ALIAS, DatabaseError
 from django.db.models import signals
 from django.db.models.fields import FieldDoesNotExist
 from django.db.models.query_utils import select_related_descend, InvalidQuery
@@ -23,7 +23,15 @@ from django.db.models.sql.where import (WhereNode, Constraint, EverythingNode,
     ExtraWhere, AND, OR)
 from django.core.exceptions import FieldError
 
-__all__ = ['Query', 'RawQuery']
+__all__ = ['Query', 'RawQuery', 'LockNotAvailable']
+
+
+class LockNotAvailable(DatabaseError): 
+    '''
+    Raised when a query fails because a lock was not available. 
+    '''
+    pass
+
 
 class RawQuery(object):
     """
@@ -84,8 +92,12 @@ class RawQuery(object):
 
     def _execute_query(self):
         self.cursor = connections[self.using].cursor()
-        self.cursor.execute(self.sql, self.params)
-
+        try:
+            self.cursor.execute(self.sql, self.params)
+        except DatabaseError, e:
+            if self.connection.features.has_select_for_update_nowait and self.connection.ops.signals_lock_not_available(e):
+                raise LockNotAvailable(*e.args)
+            raise
 
 class Query(object):
     """
@@ -131,6 +143,8 @@ class Query(object):
         self.order_by = []
         self.low_mark, self.high_mark = 0, None  # Used for offset/limit
         self.distinct = False
+        self.select_for_update = False
+        self.select_for_update_nowait = False
         self.select_related = False
         self.related_select_cols = []
 
@@ -259,6 +273,8 @@ class Query(object):
         obj.order_by = self.order_by[:]
         obj.low_mark, obj.high_mark = self.low_mark, self.high_mark
         obj.distinct = self.distinct
+        obj.select_for_update = self.select_for_update
+        obj.select_for_update_nowait = self.select_for_update_nowait
         obj.select_related = self.select_related
         obj.related_select_cols = []
         obj.aggregates = deepcopy(self.aggregates, memo=memo)
@@ -359,6 +375,7 @@ class Query(object):
 
         query.clear_ordering(True)
         query.clear_limits()
+        query.select_for_update = False
         query.select_related = False
         query.related_select_cols = []
         query.related_select_fields = []

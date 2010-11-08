@@ -19,6 +19,7 @@ from django.utils.safestring import SafeUnicode, SafeString
 try:
     import psycopg2 as Database
     import psycopg2.extensions
+    from psycopg2 import errorcodes
 except ImportError, e:
     from django.core.exceptions import ImproperlyConfigured
     raise ImproperlyConfigured("Error loading psycopg2 module: %s" % e)
@@ -67,8 +68,12 @@ class CursorWrapper(object):
 class DatabaseFeatures(BaseDatabaseFeatures):
     needs_datetime_string_cast = False
     can_return_id_from_insert = False
+    has_select_for_update = True
+    has_select_for_update_nowait = True
 
 class DatabaseOperations(PostgresqlDatabaseOperations):
+    signals_deadlock = lambda self, e: e.pgcode == errorcodes.DEADLOCK_DETECTED
+    signals_lock_not_available = lambda self, e: e.pgcode == errorcodes.LOCK_NOT_AVAILABLE
     def last_executed_query(self, cursor, sql, params):
         # With psycopg2, cursor objects have a "query" attribute that is the
         # exact query sent to the database. See docs here:

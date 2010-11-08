@@ -343,6 +343,15 @@ Furthermore, if you are using a version of MySQL prior to 5.0.3, all of those
 column types have a maximum length restriction of 255 characters, regardless
 of whether ``unique=True`` is specified or not.
 
+Row locking with ``QuerySet.select_for_update()`` 
+------------------------------------------------- 
+ 
+MySQL does not support the NOWAIT option to the SELECT ... FOR UPDATE  
+statement. However, you may call the ``select_for_update()`` method of a  
+queryset with ``nowait=True``. In that case, the argument will be silently  
+discarded and the generated query will block until the requested lock can be  
+acquired. 
+
 .. _sqlite-notes:
 
 SQLite notes
